@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prony-stabilization"
+version = "0.1.0"
+description = "Stabilized Prony method with oversampling and SVD-based ESPRIT"
+readme = "README.md"
+authors = [
+    {name = "Hari Rajagopal", email = "hrg.anayath@gmail.com"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7",
+    "pandas>=1.3",
+    "matplotlib>=3.4",
+    "plotly>=5.3",
+    "openpyxl>=3.0.0",
+    "seaborn>=0.12",
+    "tabulate>=0.9",
+]
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/hrganayath/prony-stabilization"
+Repository = "https://github.com/hrganayath/prony-stabilization.git"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["prony*"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
