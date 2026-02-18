@@ -19,7 +19,9 @@ venv/
 .ipynb_checkpoints/
 
 # Generated experiment outputs
+results/
 outputs/
+figures/
 
 # Testing
 .pytest_cache/
@@ -37,4 +39,3 @@ htmlcov/
 Thumbs.db
 .AppleDouble
 .LSOverride
-

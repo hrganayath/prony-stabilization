@@ -1,7 +1,5 @@
-# residual.py
 import numpy as np
 from typing import Optional, Tuple
-
 from .data import generate_clean_data
 
 
@@ -15,28 +13,14 @@ def compute_residual_error(
     eps: float = 1e-15,
 ) -> Tuple[float, float, float, float]:
     """
-    Compute residual (data misfit) metrics between a reconstructed signal and observed samples.
+    Residual (data misfit) metrics between reconstructed signal and observed samples.
 
-    We reconstruct y_hat using the estimated parameters (a_hat, omega_hat) and compare it to
-    the observed samples y_ref = y_noisy[:L_eval].
+    This is NOT a numerical-analysis backward error. It is the ℓ2 residual:
+        residual = || y_hat - y_ref ||_2,
+    where y_hat is reconstructed from (a_hat, omega_hat) and y_ref is the observed data segment.
 
-    Metrics returned
-    ----------------
-    residual_norm:
-        || y_hat - y_ref ||_2
-    relative_residual:
-        residual_norm / (||y_ref||_2 + eps)
-    rmse:
-        residual_norm / sqrt(L_eval)
-    rel_rmse:
-        rmse / ( (||y_ref||_2 / sqrt(L_eval)) + eps )
-
-    Notes
-    -----
-    - This is a fit residual / data misfit, not a classical numerical-analysis backward error.
-    - If L_eval is None, we evaluate on the full estimation window
-      L_train = oversampling_factor * N + N + 1, which changes with oversampling_factor.
-      For fair cross-factor comparisons, pass a fixed L_eval (e.g., 2*N+1).
+    Returns:
+      residual_norm, relative_residual, rmse, rel_rmse
     """
     L_train = oversampling_factor * N + N + 1
 
@@ -46,7 +30,6 @@ def compute_residual_error(
         L_eval = min(int(L_eval), L_train)
 
     t_eval = np.arange(L_eval, dtype=float)
-
     y_hat = generate_clean_data(t_eval, a_hat, omega_hat)
     y_ref = y_noisy[:L_eval]
 
