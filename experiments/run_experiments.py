@@ -11,7 +11,7 @@ plt.switch_backend("Agg")
 
 # Core Prony functions
 from prony import (
-    compute_backward_error,
+    compute_residual_error,
     frequency_error_generic,
     match_estimates,
     prony_method,
@@ -78,7 +78,7 @@ def run_experiments() -> pd.DataFrame:
         - Backward error (full window and fixed window)
         - RMSE (full and fixed)
         - Condition number of the Hankel matrix
-        - Error ratios (forward / backward)
+        - Error ratios (forward / residual)
 
     Returns
     -------
@@ -134,7 +134,7 @@ def run_experiments() -> pd.DataFrame:
 
                 cond_numbers.append(cond_num)
 
-                back_err, rel_back_err, rmse, rel_rmse = compute_backward_error(
+                back_err, rel_back_err, rmse, rel_rmse = compute_residual_error(
                     y_noisy,
                     a_est_m,
                     omegas_est_m,
@@ -147,7 +147,7 @@ def run_experiments() -> pd.DataFrame:
                 rel_rmse_list.append(rel_rmse)
 
                 L_fixed = 2 * N + 1
-                back_err_fx, rel_back_err_fx, rmse_fx, rel_rmse_fx = compute_backward_error(
+                back_err_fx, rel_back_err_fx, rmse_fx, rel_rmse_fx = compute_residual_error(
                     y_noisy,
                     a_est_m,
                     omegas_est_m,
@@ -175,10 +175,10 @@ def run_experiments() -> pd.DataFrame:
                     "Amplitude Error Std": np.std(amp_errors),
                     "Frequency Error Mean": np.mean(freq_errors),
                     "Frequency Error Std": np.std(freq_errors),
-                    "Backward Error Mean": np.mean(back_errors),
-                    "Backward Error Std": np.std(back_errors),
-                    "Relative Backward Error Mean": np.mean(rel_back_errors),
-                    "Relative Backward Error Std": np.std(rel_back_errors),
+                    "Residual Mean": np.mean(back_errors),
+                    "Residual Std": np.std(back_errors),
+                    "Relative Residual Mean": np.mean(rel_back_errors),
+                    "Relative Residual Std": np.std(rel_back_errors),
                     "Condition Number Mean": np.mean(cond_numbers),
                     "Condition Number Std": np.std(cond_numbers),
                     "Condition Number Min": np.min(cond_numbers),
@@ -192,10 +192,10 @@ def run_experiments() -> pd.DataFrame:
                     "RMSE Std": np.std(rmse_list),
                     "Rel RMSE Mean": np.mean(rel_rmse_list),
                     "Rel RMSE Std": np.std(rel_rmse_list),
-                    "Backward Error Fixed Mean": np.mean(back_errors_fixed),
-                    "Backward Error Fixed Std": np.std(back_errors_fixed),
-                    "Relative Backward Error Fixed Mean": np.mean(rel_back_errors_fixed),
-                    "Relative Backward Error Fixed Std": np.std(rel_back_errors_fixed),
+                    "Residual Fixed Mean": np.mean(back_errors_fixed),
+                    "Residual Fixed Std": np.std(back_errors_fixed),
+                    "Relative Residual Fixed Mean": np.mean(rel_back_errors_fixed),
+                    "Relative Residual Fixed Std": np.std(rel_back_errors_fixed),
                     "RMSE Fixed Mean": np.mean(rmse_fixed_list),
                     "RMSE Fixed Std": np.std(rmse_fixed_list),
                     "Rel RMSE Fixed Mean": np.mean(rel_rmse_fixed_list),
@@ -266,8 +266,8 @@ def plot_and_save_results(df_results: pd.DataFrame) -> None:
 
     plot_error_heatmap(
         df_results,
-        "Backward Error Mean",
-        "Sampling Error Heatmap (Mean)\n(Noise Level vs Oversampling Factor)",
+        "Residual Mean",
+        "Residual Heatmap (Mean)\n(Noise Level vs Oversampling Factor)",
     )
     plot_error_heatmap(
         df_results,
@@ -283,8 +283,8 @@ def plot_and_save_results(df_results: pd.DataFrame) -> None:
 
     df_renamed = df_results.rename(
         columns={
-            "Backward Error Mean": "Backward Error",
-            "Relative Backward Error Mean": "Relative Backward Error",
+            "Residual Mean": "Residual",
+            "Relative Residual Mean": "Relative Residual",
         }
     )
     plot_error_subplots(df_renamed)

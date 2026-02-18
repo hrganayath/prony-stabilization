@@ -9,8 +9,8 @@ from typing import Optional, List
 # ----------------------------------------------------------------------
 # Helper for consistent label mapping (optional)
 _LABEL_MAP = {
-    "Backward Error Mean": "Sampling Error Mean",
-    "Relative Backward Error Mean": "Relative Sampling Error Mean",
+    "Residual Mean": "Residual norm (mean)",
+    "Relative Residual Mean": "Relative residual (mean)",
     "RMSE Mean": "RMSE Mean",
     "Rel RMSE Mean": "Relative RMSE Mean",
     # add more if needed
@@ -133,7 +133,7 @@ def plot_error_subplots(
     ----------
     df_results : pd.DataFrame
         Aggregated results. Must contain columns "Oversampling Factor", "Noise Level",
-        "Backward Error" (absolute) and "Relative Backward Error".
+        "Residual" (absolute) and "Relative Residual".
     save_path : str, optional
         If provided, save the figure to this path.
     """
@@ -142,18 +142,18 @@ def plot_error_subplots(
     # Absolute backward error
     for os_factor in sorted(df_results["Oversampling Factor"].unique()):
         subset = df_results[df_results["Oversampling Factor"] == os_factor]
-        ax[0].plot(subset["Noise Level"], subset["Backward Error"], label=f'ρ = {os_factor}')
-    ax[0].set_title("Absolute Sampling Error vs Noise Level")
-    ax[0].set_ylabel("Sampling Error")
+        ax[0].plot(subset["Noise Level"], subset["Residual"], label=f'ρ = {os_factor}')
+    ax[0].set_title("Absolute Residual norm vs Noise Level")
+    ax[0].set_ylabel("Residual norm")
     ax[0].legend()
 
     # Relative backward error
     for os_factor in sorted(df_results["Oversampling Factor"].unique()):
         subset = df_results[df_results["Oversampling Factor"] == os_factor]
-        ax[1].plot(subset["Noise Level"], subset["Relative Backward Error"], label=f'ρ = {os_factor}')
-    ax[1].set_title("Relative Sampling Error vs Noise Level")
+        ax[1].plot(subset["Noise Level"], subset["Relative Residual"], label=f'ρ = {os_factor}')
+    ax[1].set_title("Relative Residual norm vs Noise Level")
     ax[1].set_xlabel("Noise Level")
-    ax[1].set_ylabel("Relative Sampling Error")
+    ax[1].set_ylabel("Relative Residual norm")
     ax[1].legend()
 
     plt.tight_layout()
@@ -304,7 +304,7 @@ def plot_error_ratios(
     save_path: Optional[str] = None
 ) -> None:
     """
-    Bar plot of mean error ratios (forward error / backward error) vs oversampling factor.
+    Bar plot of mean error ratios (forward error / residual) vs oversampling factor.
 
     Parameters
     ----------
@@ -321,7 +321,7 @@ def plot_error_ratios(
     """
     plt.figure(figsize=(8, 6))
     plt.yscale('log')
-    plt.ylabel('Log Mean Error Ratio (Forward Error / Sampling Error)')
+    plt.ylabel('Log Mean Error Ratio (Forward Error / Residual norm)')
 
     width = 0.4
     x = np.arange(len(os_factors))
@@ -448,19 +448,19 @@ def plot_condition_vs_error_scatter(
     ----------
     df_results : pd.DataFrame
         Aggregated results with columns "Condition Number Mean",
-        "Backward Error Mean", "Amplitude Error Mean".
+        "Residual Mean", "Amplitude Error Mean".
     save_path : str, optional
         If provided, save the figure to this path.
     """
     plt.figure(figsize=(10, 5))
 
     plt.subplot(1, 2, 1)
-    plt.scatter(df_results["Condition Number Mean"], df_results["Backward Error Mean"])
+    plt.scatter(df_results["Condition Number Mean"], df_results["Residual Mean"])
     plt.xscale('log')
     plt.yscale('log')
     plt.xlabel("Condition Number (log scale)")
-    plt.ylabel("Sampling Error")
-    plt.title("κ(H) vs Sampling Error")
+    plt.ylabel("Residual norm")
+    plt.title("κ(H) vs Residual norm")
 
     plt.subplot(1, 2, 2)
     plt.scatter(df_results["Condition Number Mean"], df_results["Amplitude Error Mean"])

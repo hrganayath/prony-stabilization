@@ -12,7 +12,7 @@ A Python package implementing stabilized Prony's method for exponential analysis
 - Prony's method with oversampling for noise robustness  
 - SVD-based ESPRIT for pole estimation  
 - Condition number analysis of Hankel matrices  
-- Backward error computation  
+- Residual (data misfit) metrics  
 - Sensitivity analysis tools  
 - Monte Carlo experiment framework  
 - Publication-ready plotting functions  
@@ -87,7 +87,7 @@ prony-stabilization/
 │   └── prony/
 │       ├── __init__.py
 │       ├── core.py
-│       ├── backward.py
+│       ├── residual.py
 │       ├── utils.py
 │       └── data.py
 ├── experiments/
@@ -98,7 +98,7 @@ prony-stabilization/
 ├── tests/
 │   ├── test_core.py
 │   ├── test_utils.py
-│   └── test_backward.py
+│   └── test_residual.py
 ├── README.md
 ├── LICENSE
 ├── pyproject.toml
@@ -132,7 +132,7 @@ Outputs are saved in the `results/` directory.
 ### Core Functions
 
 - `prony_method(y, oversampling_factor, n)` — main algorithm  
-- `compute_backward_error(...)` — error analysis  
+- `compute_residual_error(...)` — error analysis  
 - `match_estimates(...)` — parameter matching  
 - `frequency_error_generic(...)` — frequency error metric  
 - `generate_clean_data(...)` — synthetic signal generation  

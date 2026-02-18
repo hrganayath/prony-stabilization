@@ -13,13 +13,13 @@ def save_comparison_tables(
     deviation, including:
         - Frequency Error
         - Amplitude Error
-        - Backward Error (full window)
-        - Relative Backward Error (full window)
+        - Residual (full window)
+        - Relative Residual (full window)
         - Condition Number of Hankel matrix
         - RMSE (full window)
         - Relative RMSE (full window)
-        - Backward Error (fixed window, L = 2N+1)
-        - Relative Backward Error (fixed window)
+        - Residual (fixed window, L = 2N+1)
+        - Relative Residual (fixed window)
         - RMSE (fixed window)
         - Relative RMSE (fixed window)
         - Condition Number: min, max, median
@@ -29,7 +29,7 @@ def save_comparison_tables(
     df_results : pd.DataFrame
         Aggregated results from Monte Carlo experiments. Must contain columns
         with appropriate names (e.g., "Frequency Error Mean", "Frequency Error Std",
-        "Backward Error Fixed Mean", etc.).
+        "Residual Fixed Mean", etc.).
     excel_path : Union[str, Path], optional
         Path where the Excel file will be saved. Defaults to "results/comparison_tables.xlsx".
     """
@@ -52,20 +52,20 @@ def save_comparison_tables(
         index="Noise Level", columns="Oversampling Factor", values="Amplitude Error Std"
     )
 
-    # Backward Error (full window)
+    # Residual (full window)
     table_backward_mean = df_results.pivot(
-        index="Noise Level", columns="Oversampling Factor", values="Backward Error Mean"
+        index="Noise Level", columns="Oversampling Factor", values="Residual Mean"
     )
     table_backward_std = df_results.pivot(
-        index="Noise Level", columns="Oversampling Factor", values="Backward Error Std"
+        index="Noise Level", columns="Oversampling Factor", values="Residual Std"
     )
 
-    # Relative Backward Error (full window)
+    # Relative Residual (full window)
     table_rel_backward_mean = df_results.pivot(
-        index="Noise Level", columns="Oversampling Factor", values="Relative Backward Error Mean"
+        index="Noise Level", columns="Oversampling Factor", values="Relative Residual Mean"
     )
     table_rel_backward_std = df_results.pivot(
-        index="Noise Level", columns="Oversampling Factor", values="Relative Backward Error Std"
+        index="Noise Level", columns="Oversampling Factor", values="Relative Residual Std"
     )
 
     # Condition Number
@@ -92,20 +92,20 @@ def save_comparison_tables(
         index="Noise Level", columns="Oversampling Factor", values="Rel RMSE Std"
     )
 
-    # Backward Error (fixed window)
+    # Residual (fixed window)
     table_backward_fixed_mean = df_results.pivot(
-        index="Noise Level", columns="Oversampling Factor", values="Backward Error Fixed Mean"
+        index="Noise Level", columns="Oversampling Factor", values="Residual Fixed Mean"
     )
     table_backward_fixed_std = df_results.pivot(
-        index="Noise Level", columns="Oversampling Factor", values="Backward Error Fixed Std"
+        index="Noise Level", columns="Oversampling Factor", values="Residual Fixed Std"
     )
 
-    # Relative Backward Error (fixed window)
+    # Relative Residual (fixed window)
     table_rel_backward_fixed_mean = df_results.pivot(
-        index="Noise Level", columns="Oversampling Factor", values="Relative Backward Error Fixed Mean"
+        index="Noise Level", columns="Oversampling Factor", values="Relative Residual Fixed Mean"
     )
     table_rel_backward_fixed_std = df_results.pivot(
-        index="Noise Level", columns="Oversampling Factor", values="Relative Backward Error Fixed Std"
+        index="Noise Level", columns="Oversampling Factor", values="Relative Residual Fixed Std"
     )
 
     # RMSE (fixed window)
@@ -141,10 +141,10 @@ def save_comparison_tables(
         table_frequency_std.to_excel(writer, sheet_name="Freq Error Std")
         table_amplitude_mean.to_excel(writer, sheet_name="Amp Error Mean")
         table_amplitude_std.to_excel(writer, sheet_name="Amp Error Std")
-        table_backward_mean.to_excel(writer, sheet_name="Backward Error Mean")
-        table_backward_std.to_excel(writer, sheet_name="Backward Error Std")
-        table_rel_backward_mean.to_excel(writer, sheet_name="Rel Back Error Mean")
-        table_rel_backward_std.to_excel(writer, sheet_name="Rel Back Error Std")
+        table_backward_mean.to_excel(writer, sheet_name="Residual Mean")
+        table_backward_std.to_excel(writer, sheet_name="Residual Std")
+        table_rel_backward_mean.to_excel(writer, sheet_name="Rel Residual Error Mean")
+        table_rel_backward_std.to_excel(writer, sheet_name="Rel Residual Error Std")
         table_condition_mean.to_excel(writer, sheet_name="Cond Num Mean")
         table_condition_std.to_excel(writer, sheet_name="Cond Num Std")
         table_rmse_mean.to_excel(writer, sheet_name="RMSE Mean")
@@ -154,8 +154,8 @@ def save_comparison_tables(
 
         table_backward_fixed_mean.to_excel(writer, sheet_name="Backward Fixed Mean")
         table_backward_fixed_std.to_excel(writer, sheet_name="Backward Fixed Std")
-        table_rel_backward_fixed_mean.to_excel(writer, sheet_name="Rel Back Fixed Mean")
-        table_rel_backward_fixed_std.to_excel(writer, sheet_name="Rel Back Fixed Std")
+        table_rel_backward_fixed_mean.to_excel(writer, sheet_name="Rel Residual Fixed Mean")
+        table_rel_backward_fixed_std.to_excel(writer, sheet_name="Rel Residual Fixed Std")
 
         table_rmse_fixed_mean.to_excel(writer, sheet_name="RMSE Fixed Mean")
         table_rmse_fixed_std.to_excel(writer, sheet_name="RMSE Fixed Std")
