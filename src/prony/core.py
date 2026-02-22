@@ -1,13 +1,16 @@
+import warnings
 import numpy as np
 from scipy.linalg import hankel, svd
-from typing import Optional, Tuple
+
+__all__ = ["prony_method"]
+
 
 def prony_method(
     y: np.ndarray,
     oversampling_factor: int,
     n: int,
-    rcond: Optional[float] = None
-) -> Tuple[np.ndarray, np.ndarray, float]:
+    rcond: float | None = None
+) -> tuple[np.ndarray, np.ndarray, float]:
     """
     Estimate amplitudes and exponents using Prony's method with SVD-based ESPRIT.
 
@@ -21,80 +24,119 @@ def prony_method(
     y : np.ndarray
         Input signal, length at least `oversampling_factor * n + n + 1`.
     oversampling_factor : int
-        Oversampling factor ρ, determining the number of rows of the Hankel matrix
-        as `ρ*n + 1`. Larger values improve noise robustness but increase
+        Oversampling factor ρ ≥ 1. Determines the number of rows of the Hankel
+        matrix as `ρ*n + 1`. Larger values improve noise robustness but increase
         computational cost.
     n : int
-        Number of exponentials in the model.
+        Number of exponentials in the model (must be ≥ 1).
     rcond : float, optional
         Cutoff for small singular values in the least squares solution for
-        amplitudes. If None (default), machine precision is used.
+        amplitudes. If None (default), NumPy's optimal default is used.
 
     Returns
     -------
     a_est : np.ndarray
         Estimated complex amplitudes, shape (n,).
     omega_est : np.ndarray
-        Estimated complex exponents, shape (n,). For a continuous-time model,
-        the exponents correspond to `log(pole)` where `pole` are the eigenvalues
-        of the shift matrix.
+        Estimated complex exponents, shape (n,), sorted by imaginary part.
+        These are principal logarithms of the estimated poles.
     cond_num : float
         Condition number of the Hankel matrix.
 
+    Raises
+    ------
+    ValueError
+        If n < 1, oversampling_factor < 1, y is too short, or any estimated
+        pole is near zero.
+
     Examples
     --------
+    >>> import numpy as np
+    >>> from prony.data import generate_clean_data
     >>> t = np.arange(10)
     >>> a_true = np.array([1.0, 0.5])
     >>> omega_true = np.array([-0.1+0.5j, -0.2-0.3j])
-    >>> y = np.sum([a_true[i]*np.exp(omega_true[i]*t) for i in range(2)], axis=0)
+    >>> y = generate_clean_data(t, a_true, omega_true)
     >>> a_est, omega_est, cond = prony_method(y, oversampling_factor=2, n=2)
-    >>> # Match estimates to true values (optional)
-    >>> from prony.utils import match_estimates
-    >>> a_est_m, omega_est_m, _ = match_estimates(a_true, omega_true, a_est, omega_est)
-    >>> np.allclose(a_est_m, a_true, rtol=1e-2)
-    True
     """
-    # Number of rows in Hankel matrix (minus one)
+    # --- Input validation ---
+    if n < 1:
+        raise ValueError(f"n must be at least 1, got n={n}.")
+    if oversampling_factor < 1:
+        raise ValueError(
+            f"oversampling_factor must be at least 1, got {oversampling_factor}."
+        )
+    min_length = oversampling_factor * n + n + 1
+    if len(y) < min_length:
+        raise ValueError(
+            f"Signal y is too short. Need at least {min_length} samples "
+            f"for oversampling_factor={oversampling_factor} and n={n}, "
+            f"but got len(y)={len(y)}."
+        )
+
+    # --- Hankel matrix ---
     m = oversampling_factor * n
-
-    # Construct Hankel matrix H of size (m+1) x (n+1)
-    H = hankel(y[:(m+1)], y[m:m+(n+1)])
-
-    # Condition number of the Hankel matrix
+    # Shape: (oversampling_factor*n + 1) x (n+1)
+    H = hankel(y[:(m + 1)], y[m:m + (n + 1)])
     cond_num = np.linalg.cond(H)
 
-    # Singular value decomposition
-    U, S, Vt = svd(H)
+    # --- SVD ---
+    U, S, _ = svd(H, full_matrices=True)
 
-    # --- ESPRIT step ---
+    # Warn if there is no clear gap between signal and noise subspace
+    if len(S) > n:
+        gap = S[n - 1] / S[n]
+        if gap < 10.0:
+            warnings.warn(
+                f"Weak singular value gap at rank n={n}: "
+                f"S[n-1]/S[n]={gap:.2f}. The chosen n may not match the "
+                f"signal's true rank. Consider inspecting the singular value "
+                f"spectrum.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+    # --- ESPRIT ---
     # Signal subspace: first n left singular vectors
     U_s = U[:, :n]
-    # Time-shifted subspaces
     U1, U2 = U_s[:-1, :], U_s[1:, :]
-    # Solve for shift matrix Phi such that U2 ≈ U1 @ Phi
+
+    # Shift matrix Phi such that U2 ≈ U1 @ Phi
     Phi, _, _, _ = np.linalg.lstsq(U1, U2, rcond=None)
-    # Poles are eigenvalues of Phi
+
+    # Poles: eigenvalues of Phi, sorted by imaginary part of log
     z_est, _ = np.linalg.eig(Phi)
-    # Exponents (principal logarithm)
-    omega_est = np.log(z_est.astype(complex))
+    z_est = z_est.astype(complex)
+    sort_idx = np.argsort(np.imag(np.log(z_est)))
+    z_est = z_est[sort_idx]
+
+    # Guard against poles near zero before taking log
+    near_zero = np.abs(z_est) < np.finfo(float).eps * 100
+    if np.any(near_zero):
+        raise ValueError(
+            f"One or more estimated poles are near zero (|z| < machine "
+            f"epsilon). This usually indicates severe noise or incorrect n. "
+            f"Pole magnitudes: {np.abs(z_est)}"
+        )
+
+    omega_est = np.log(z_est)
 
     # --- Amplitude recovery ---
-    L = m + n + 1                     # number of samples used in estimation
-    # Vandermonde matrix with columns = exp(omega_est * t) for t = 0..L-1
-    V = np.vander(np.exp(omega_est), L, increasing=True).T  # shape (L, n)
+    # L: total sample window = number of unique Hankel entries
+    L = m + n + 1
+
+    # Vandermonde: V[k, i] = exp(omega_est[i] * k), shape (L, n)
+    t_idx = np.arange(L)
+    V = np.exp(np.outer(t_idx, omega_est))
 
     # Column scaling to improve conditioning
     col_norms = np.linalg.norm(V, axis=0)
-    col_norms[col_norms == 0] = 1.0
+    threshold = np.finfo(float).eps * np.max(col_norms)
+    col_norms[col_norms < threshold] = 1.0
     V_scaled = V / col_norms
 
-    # Set rcond for least squares if not provided
-    if rcond is None:
-        rcond = np.finfo(V_scaled.dtype).eps * max(V_scaled.shape)
-
-    # Solve for scaled amplitudes
+    # Fit amplitudes over the same window used to construct the Hankel matrix
     a_scaled, _, _, _ = np.linalg.lstsq(V_scaled, y[:L], rcond=rcond)
-    # Rescale
     a_est = a_scaled / col_norms
 
     return a_est, omega_est, cond_num
