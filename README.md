@@ -59,8 +59,11 @@ import numpy as np
 from prony import prony_method, generate_clean_data, match_estimates
 
 # Create a synthetic signal with 2 exponentials
-t = np.arange(30)
+dt = 1.0 #sampling interval (seconds); adjust as needed
+t = np.arange(30)*dt
 a_true = np.array([1.0, 0.5])
+# omega_true: continuous-time complex exponents (sigma + j*omega)
+# signal model: y[k] = sum_i a_i * exp(omega_i * t[k])
 omega_true = np.array([-0.1+0.5j, -0.2-0.3j])
 y = generate_clean_data(t, a_true, omega_true)
 
