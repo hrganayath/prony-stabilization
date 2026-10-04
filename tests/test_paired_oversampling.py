@@ -87,3 +87,26 @@ def test_clean_subspace_angle_is_zero_for_identical_data():
 
     assert angle_max < 1e-10
     assert angle_mean < 1e-10
+
+
+from experiments.paired_oversampling.signal_decay import (
+    build_decay_table,
+    component_envelopes,
+)
+
+
+def test_component_envelopes_decay_for_all_components():
+    envelopes = component_envelopes(MAX_SAMPLES)
+
+    assert envelopes.shape == (MODEL_ORDER, MAX_SAMPLES)
+    assert np.all(np.isfinite(envelopes))
+    assert np.all(envelopes[:, -1] < envelopes[:, 0])
+
+
+def test_signal_decay_table_marks_rho_endpoints():
+    df = build_decay_table()
+
+    assert len(df) == MAX_SAMPLES
+    for rho in (1, 3, 5, 10):
+        endpoint = sample_count(rho) - 1
+        assert df.loc[endpoint, "rho_endpoint"] == rho
