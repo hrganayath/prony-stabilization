@@ -194,4 +194,11 @@ def wrap_to_nyquist(f: np.ndarray) -> np.ndarray:
             "wrap_to_nyquist expects real-valued frequencies, got complex input."
         )
     f = f.astype(float)
-    return ((f + 0.5) % 1.0) - 0.5
+    wrapped = ((f + 0.5) % 1.0) - 0.5
+
+    # The modulo expression naturally returns values in [-0.5, 0.5).
+    # Our documented convention is (-0.5, 0.5], so move the equivalent
+    # Nyquist-boundary representative from -0.5 to +0.5.
+    boundary = np.isclose(wrapped, -0.5, rtol=0.0, atol=1e-15)
+    wrapped[boundary] = 0.5
+    return wrapped
