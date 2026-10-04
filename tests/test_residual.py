@@ -88,7 +88,9 @@ def test_residual_error_all_metrics_non_negative():
 
 def test_residual_error_signal_too_short():
     """compute_residual_error should raise ValueError when y_noisy is too short."""
-    y = np.ones(5, dtype=complex)
+    # For rho=2 and n=1, the training length is 2*1 + 1 + 1 = 4.
+    # Three samples are therefore genuinely too short.
+    y = np.ones(3, dtype=complex)
     a_hat = np.array([1.0 + 0j])
     omega_hat = np.array([-0.1 + 0.5j])
 
