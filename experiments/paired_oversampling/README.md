@@ -22,7 +22,7 @@ The paired design is intentionally separate from
 `experiments/run_experiments.py`, which uses independent random streams
 across configurations.
 
-## Run
+## Baseline run
 
 From the repository root:
 
@@ -30,7 +30,13 @@ From the repository root:
 python -m experiments.paired_oversampling.run
 ```
 
-Outputs are written to:
+For a quick smoke test:
+
+```bash
+python -m experiments.paired_oversampling.run --trials 3
+```
+
+Full-run outputs are written to:
 
 ```text
 results/paired_oversampling/
@@ -38,11 +44,7 @@ results/paired_oversampling/
     summary.csv
 ```
 
-`raw_results.npz` stores trial-level results. `summary.csv` is generated
-from those raw values and contains the mean, standard deviation, median,
-quartiles, and 95th percentile for each metric.
-
-## Current metrics
+The baseline raw array stores trial-level values for:
 
 - relative exponent error
 - relative amplitude error
@@ -50,5 +52,43 @@ quartiles, and 95th percentile for each metric.
 - clean-target RMSE on the common nine-sample window
 - condition number of the full noisy Hankel matrix
 
-Additional diagnostics should be added as separate, explicit analyses rather
-than changing this baseline experiment.
+## Mechanism diagnostics
+
+The baseline experiment is left unchanged. Additional diagnostics are run
+separately with the same signal, noise levels, seeds, and paired-prefix
+protocol:
+
+```bash
+python -m experiments.paired_oversampling.diagnostics
+```
+
+For a quick smoke test:
+
+```bash
+python -m experiments.paired_oversampling.diagnostics --trials 3
+```
+
+The diagnostic study records:
+
+- damping RMSE from the real parts of the matched exponents
+- wrapped frequency RMSE in cycles per sample
+- oracle-pole amplitude error, obtained by fixing the true exponents and
+  solving only the column-scaled Vandermonde least-squares problem
+- largest principal angle between the clean and noisy rank-`n` left
+  singular subspaces
+- mean principal angle between those subspaces
+
+Angles are reported in degrees. These quantities are supporting diagnostics;
+they do not replace the baseline parameter and reconstruction errors.
+
+Full diagnostic outputs are:
+
+```text
+results/paired_oversampling/
+    diagnostics_raw.npz
+    diagnostics_summary.csv
+```
+
+All summary CSV files are generated from the corresponding raw trial-level
+arrays and contain the mean, standard deviation, median, quartiles, and 95th
+percentile.
