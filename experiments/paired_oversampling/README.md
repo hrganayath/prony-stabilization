@@ -115,3 +115,14 @@ results/paired_oversampling/
     signal_decay.csv
     signal_decay.png
 ```
+
+
+## Repository hygiene
+
+Generated experiment outputs live under `results/paired_oversampling/`.
+The repository-level `.gitignore` excludes `results/`, so large raw Monte
+Carlo arrays and generated tables/figures remain local by default. The
+version-controlled source code is sufficient to regenerate them.
+
+This study requires Python 3.10 or newer, consistent with the repository
+package metadata.
