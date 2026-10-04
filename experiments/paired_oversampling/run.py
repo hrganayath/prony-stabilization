@@ -4,6 +4,10 @@ Run from the repository root with:
 
     python -m experiments.paired_oversampling.run
 
+For a quick smoke test:
+
+    python -m experiments.paired_oversampling.run --trials 3
+
 This runner is intentionally separate from experiments.run_experiments.
 Its purpose is to reproduce the paired oversampling design used for the
 paper study: within each trial the same noise realization is reused across
@@ -12,6 +16,7 @@ all oversampling factors by taking longer prefixes.
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 import warnings
 
@@ -113,8 +118,14 @@ def _trial_metrics(
     return metrics
 
 
-def run() -> np.ndarray:
-    """Run the complete paired Monte Carlo experiment.
+def run(n_trials: int = N_TRIALS) -> np.ndarray:
+    """Run the paired Monte Carlo experiment.
+
+    Parameters
+    ----------
+    n_trials : int
+        Number of paired trials per noise level. The paper run uses 1000.
+        Smaller values are useful only for smoke testing.
 
     Returns
     -------
@@ -122,15 +133,21 @@ def run() -> np.ndarray:
         Shape
         (n_noise_levels, n_rho_values, n_trials, n_metrics).
     """
+    if not 1 <= n_trials <= N_TRIALS:
+        raise ValueError(
+            f"n_trials must be between 1 and {N_TRIALS}, got {n_trials}."
+        )
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     y_clean_full = clean_signal(MAX_SAMPLES)
+    seeds = TRIAL_SEEDS[:n_trials]
 
     raw = np.empty(
         (
             len(NOISE_LEVELS),
             len(RHO_VALUES),
-            N_TRIALS,
+            n_trials,
             len(METRIC_NAMES),
         ),
         dtype=float,
@@ -143,20 +160,20 @@ def run() -> np.ndarray:
             flush=True,
         )
 
-        for trial_idx, seed in enumerate(TRIAL_SEEDS):
+        for trial_idx, seed in enumerate(seeds):
             # Historical paired protocol:
-            # trial i uses RandomState(i).  The same standard-normal
+            # trial i uses RandomState(i). The same standard-normal
             # realization is reused across rho via progressively longer
-            # prefixes.  Reusing the same seed at every sigma also keeps the
+            # prefixes. Reusing the same seed at every sigma also keeps the
             # underlying standard-normal draw fixed across noise levels.
             rng = np.random.RandomState(int(seed))
             noise_full = rng.standard_normal(MAX_SAMPLES)
 
             for rho_idx, rho in enumerate(RHO_VALUES):
-                N = sample_count(int(rho))
+                n_samples = sample_count(int(rho))
                 y_noisy = (
-                    y_clean_full[:N]
-                    + float(sigma) * noise_full[:N]
+                    y_clean_full[:n_samples]
+                    + float(sigma) * noise_full[:n_samples]
                 )
 
                 raw[noise_idx, rho_idx, trial_idx, :] = _trial_metrics(
@@ -165,16 +182,36 @@ def run() -> np.ndarray:
                     y_clean_reference=y_clean_full,
                 )
 
+    return raw
+
+
+def save_results(raw: np.ndarray, n_trials: int) -> tuple[Path, Path]:
+    """Save raw and summarized results.
+
+    Smoke-test outputs are kept separate from the full 1000-trial outputs.
+    """
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    if n_trials == N_TRIALS:
+        raw_path = RAW_RESULTS
+        summary_path = SUMMARY_CSV
+    else:
+        raw_path = OUTPUT_DIR / f"raw_results_smoke_{n_trials}.npz"
+        summary_path = OUTPUT_DIR / f"summary_smoke_{n_trials}.csv"
+
     np.savez_compressed(
-        RAW_RESULTS,
+        raw_path,
         raw=raw,
         metric_names=np.array(METRIC_NAMES),
         noise_levels=NOISE_LEVELS,
         rho_values=RHO_VALUES,
-        trial_seeds=TRIAL_SEEDS,
+        trial_seeds=TRIAL_SEEDS[:n_trials],
     )
 
-    return raw
+    summary = make_summary(raw)
+    summary.to_csv(summary_path, index=False)
+
+    return raw_path, summary_path
 
 
 def make_summary(raw: np.ndarray) -> pd.DataFrame:
@@ -201,20 +238,35 @@ def make_summary(raw: np.ndarray) -> pd.DataFrame:
                     }
                 )
 
-    summary = pd.DataFrame(rows)
-    summary.to_csv(SUMMARY_CSV, index=False)
-    return summary
+    return pd.DataFrame(rows)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the paired oversampling Monte Carlo study."
+    )
+    parser.add_argument(
+        "--trials",
+        type=int,
+        default=N_TRIALS,
+        help=(
+            f"Number of paired trials per noise level "
+            f"(default: {N_TRIALS}). Use a small value for a smoke test."
+        ),
+    )
+    return parser.parse_args()
 
 
 def main() -> None:
-    raw = run()
-    summary = make_summary(raw)
+    args = parse_args()
+
+    raw = run(n_trials=args.trials)
+    raw_path, summary_path = save_results(raw, n_trials=args.trials)
 
     print()
-    print(f"Saved raw trial data to: {RAW_RESULTS}")
-    print(f"Saved summaries to:      {SUMMARY_CSV}")
+    print(f"Saved raw trial data to: {raw_path}")
+    print(f"Saved summaries to:      {summary_path}")
     print(f"Raw array shape:          {raw.shape}")
-    print(f"Summary rows:             {len(summary)}")
 
 
 if __name__ == "__main__":
