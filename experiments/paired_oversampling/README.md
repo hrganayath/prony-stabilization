@@ -92,3 +92,26 @@ results/paired_oversampling/
 All summary CSV files are generated from the corresponding raw trial-level
 arrays and contain the mean, standard deviation, median, quartiles, and 95th
 percentile.
+
+
+## Signal-decay diagnostic
+
+A deterministic companion analysis shows how the damped signal and the
+individual component envelopes evolve as the observation horizon grows:
+
+```bash
+python -m experiments.paired_oversampling.signal_decay
+```
+
+This analysis does not claim a formal SNR for the complex-valued observation
+model.  It reports the clean-signal magnitude, component envelopes, and simple
+magnitude-to-noise-standard-deviation ratios at representative noise levels.
+It also marks the last sample included by each oversampling factor.
+
+Outputs:
+
+```text
+results/paired_oversampling/
+    signal_decay.csv
+    signal_decay.png
+```
