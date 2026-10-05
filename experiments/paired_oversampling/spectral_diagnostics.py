@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.linalg import hankel, subspace_angles, svdvals, svd
+from scipy.linalg import hankel, subspace_angles, svd, svdvals
 
 from .noise_protocol import canonical_real_noise
 
