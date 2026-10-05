@@ -1,7 +1,13 @@
 """Tests for utility functions (matching, error metrics, frequency wrapping)."""
 import numpy as np
 import pytest
-from prony.utils import match_estimates, relative_exponent_error, wrap_to_nyquist
+from prony.utils import (
+    match_estimates,
+    match_estimates_wrapped_exponent,
+    relative_exponent_error,
+    relative_exponent_error_wrapped,
+    wrap_to_nyquist,
+)
 
 
 # ── match_estimates ───────────────────────────────────────────────────────────
@@ -188,3 +194,36 @@ def test_wrap_to_nyquist_complex_input_raises():
     """wrap_to_nyquist should raise ValueError for complex input."""
     with pytest.raises(ValueError, match="real-valued"):
         wrap_to_nyquist(np.array([0.1 + 0.2j, 0.3 + 0.4j]))
+
+
+def test_wrapped_exponent_error_handles_branch_crossing():
+    """Wrapped exponent error should treat 2*pi-equivalent phases as close."""
+    omega_true = np.array([-0.1 - 2.9j])
+    omega_hat = np.array([-0.1 + (2.0 * np.pi - 2.9) * 1j])
+
+    err = relative_exponent_error_wrapped(omega_true, omega_hat)
+
+    assert err < 1e-12
+
+
+def test_wrapped_exponent_matching_uses_periodic_imaginary_distance():
+    """Wrapped exponent matching should pair components across a branch cut."""
+    a_true = np.array([1.0, 2.0])
+    omega_true = np.array([-0.1 - 2.9j, -0.2 + 1.0j])
+
+    a_hat = np.array([2.1, 0.9])
+    omega_hat = np.array([
+        -0.19 + 1.01j,
+        -0.11 + (2.0 * np.pi - 2.91) * 1j,
+    ])
+
+    a_m, w_m, distances = match_estimates_wrapped_exponent(
+        a_true,
+        omega_true,
+        a_hat,
+        omega_hat,
+    )
+
+    assert np.isclose(a_m[0], 0.9)
+    assert np.isclose(a_m[1], 2.1)
+    assert np.all(distances < 0.05)
