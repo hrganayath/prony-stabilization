@@ -1,7 +1,13 @@
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-__all__ = ["match_estimates", "relative_exponent_error", "wrap_to_nyquist"]
+__all__ = [
+    "match_estimates",
+    "match_estimates_wrapped_exponent",
+    "relative_exponent_error",
+    "relative_exponent_error_wrapped",
+    "wrap_to_nyquist",
+]
 
 
 def match_estimates(
@@ -85,6 +91,89 @@ def match_estimates(
     row_ind, col_ind = linear_sum_assignment(C)
 
     return a_hat[col_ind], omega_hat[col_ind], C[row_ind, col_ind]
+
+
+
+def _wrapped_exponent_difference(
+    omega_true: np.ndarray,
+    omega_hat: np.ndarray,
+) -> np.ndarray:
+    """Return omega_hat-omega_true with imaginary differences wrapped by 2*pi."""
+    real_diff = np.real(omega_hat) - np.real(omega_true)
+    imag_diff = np.imag(omega_hat) - np.imag(omega_true)
+    wrapped_imag = 2.0 * np.pi * wrap_to_nyquist(imag_diff / (2.0 * np.pi))
+    return real_diff + 1j * wrapped_imag
+
+
+def match_estimates_wrapped_exponent(
+    a_true: np.ndarray,
+    omega_true: np.ndarray,
+    a_hat: np.ndarray,
+    omega_hat: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Match estimates using wrapped distance in the complex exponent plane.
+
+    The real-part difference is used directly. Imaginary-part differences are
+    wrapped modulo 2*pi before the Euclidean matching cost is formed. This
+    makes the assignment consistent with exponent scoring when frequencies
+    are identified modulo one cycle per sample.
+    """
+    a_true = np.asarray(a_true, dtype=complex)
+    omega_true = np.asarray(omega_true, dtype=complex)
+    a_hat = np.asarray(a_hat, dtype=complex)
+    omega_hat = np.asarray(omega_hat, dtype=complex)
+
+    if a_true.ndim != 1 or omega_true.ndim != 1:
+        raise ValueError("a_true and omega_true must be 1-D arrays.")
+    if a_hat.ndim != 1 or omega_hat.ndim != 1:
+        raise ValueError("a_hat and omega_hat must be 1-D arrays.")
+    if len(a_true) != len(omega_true):
+        raise ValueError("a_true and omega_true must have the same length.")
+    if len(a_hat) != len(omega_hat):
+        raise ValueError("a_hat and omega_hat must have the same length.")
+    if len(a_true) != len(a_hat):
+        raise ValueError("True and estimated arrays must have the same length.")
+
+    real_diff = np.real(omega_hat)[None, :] - np.real(omega_true)[:, None]
+    imag_diff = np.imag(omega_hat)[None, :] - np.imag(omega_true)[:, None]
+    wrapped_imag = (
+        2.0
+        * np.pi
+        * wrap_to_nyquist(imag_diff / (2.0 * np.pi))
+    )
+    cost = np.sqrt(real_diff**2 + wrapped_imag**2)
+
+    row_ind, col_ind = linear_sum_assignment(cost)
+    return a_hat[col_ind], omega_hat[col_ind], cost[row_ind, col_ind]
+
+
+def relative_exponent_error_wrapped(
+    omega_true: np.ndarray,
+    omega_hat_matched: np.ndarray,
+) -> float:
+    """Relative exponent error with imaginary differences wrapped modulo 2*pi.
+
+    The denominator is ||omega_true||_2, matching the main-paper relative
+    exponent normalization. Only the imaginary differences are wrapped.
+    """
+    omega_true = np.asarray(omega_true, dtype=complex)
+    omega_hat_matched = np.asarray(omega_hat_matched, dtype=complex)
+
+    if omega_true.shape != omega_hat_matched.shape:
+        raise ValueError(
+            "omega_true and omega_hat_matched must have the same shape."
+        )
+    if omega_true.size == 0:
+        raise ValueError("omega_true must not be empty.")
+
+    den = np.linalg.norm(omega_true)
+    if den < np.finfo(float).eps:
+        raise ValueError(
+            "True exponents have near-zero norm — relative error is undefined."
+        )
+
+    diff = _wrapped_exponent_difference(omega_true, omega_hat_matched)
+    return float(np.linalg.norm(diff) / den)
 
 
 def relative_exponent_error(
