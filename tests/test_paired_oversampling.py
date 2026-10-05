@@ -11,8 +11,16 @@ from experiments.paired_oversampling.config import (
     sample_count,
 )
 from experiments.paired_oversampling.diagnostics import (
+    DIAGNOSTIC_NAMES,
     _oracle_amplitudes,
-    _subspace_diagnostics,
+)
+from experiments.paired_oversampling.noise_protocol import canonical_real_noise
+from experiments.paired_oversampling.signal_decay import (
+    build_decay_table,
+    component_envelopes,
+)
+from experiments.paired_oversampling.spectral_diagnostics import (
+    _one_trial as _spectral_one_trial,
 )
 from prony import match_estimates, prony_method
 
@@ -53,15 +61,24 @@ def test_noiseless_fit_recovers_reference_signal():
     assert np.linalg.norm(a_hat - AMPLITUDES) < 1e-10
 
 
-def test_noise_prefix_pairing_protocol():
+def test_noise_prefix_pairing_protocol_matches_default_rng():
     seed = 17
-    rng = np.random.RandomState(seed)
-    noise = rng.standard_normal(MAX_SAMPLES)
+    noise = canonical_real_noise(seed, MAX_SAMPLES)
+    expected = np.random.default_rng(seed).standard_normal(MAX_SAMPLES)
+
+    assert np.array_equal(noise, expected)
 
     n1 = sample_count(1)
     n4 = sample_count(4)
-
     assert np.array_equal(noise[:n1], noise[:n4][:n1])
+
+
+def test_retained_mechanism_diagnostics_exclude_left_subspace_angles():
+    assert DIAGNOSTIC_NAMES == (
+        "damping_rmse",
+        "frequency_rmse",
+        "oracle_amplitude_error",
+    )
 
 
 def test_oracle_amplitudes_recover_noiseless_signal():
@@ -74,25 +91,21 @@ def test_oracle_amplitudes_recover_noiseless_signal():
     assert np.linalg.norm(a_oracle - AMPLITUDES) < 1e-10
 
 
-def test_clean_subspace_angle_is_zero_for_identical_data():
+def test_fixed_ambient_spectral_angle_is_zero_for_identical_data():
     rho = 4
     n_samples = sample_count(rho)
     y = clean_signal(n_samples)
 
-    angle_max, angle_mean = _subspace_diagnostics(
+    values = _spectral_one_trial(
         y_clean=y,
         y_noisy=y,
         rho=rho,
     )
 
-    assert angle_max < 1e-10
-    assert angle_mean < 1e-10
-
-
-from experiments.paired_oversampling.signal_decay import (
-    build_decay_table,
-    component_envelopes,
-)
+    assert values[0] < 1e-10
+    assert values[1] < 1e-10
+    assert values[4] < 1e-12
+    assert values[5] < 1e-12
 
 
 def test_component_envelopes_decay_for_all_components():
