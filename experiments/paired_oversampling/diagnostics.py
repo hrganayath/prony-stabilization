@@ -1,8 +1,17 @@
 """Mechanism diagnostics for the paired oversampling study.
 
-This module deliberately leaves the baseline experiment in run.py unchanged.
-It reruns the same paired noise protocol and records additional diagnostics
-that help interpret the observed oversampling trade-off.
+This module reruns the canonical paired real-noise protocol and records
+supporting diagnostics that complement the primary wrapped parameter errors.
+
+The diagnostics retained here are:
+1. damping RMSE,
+2. wrapped frequency RMSE in cycles/sample,
+3. oracle-pole amplitude error.
+
+Cross-rho left-singular-subspace angles are intentionally not computed here,
+because the left singular vectors live in a rho-dependent ambient dimension.
+Comparable fixed-dimensional right-subspace and spectral diagnostics are
+implemented separately in spectral_diagnostics.py.
 
 Run a quick smoke test from the repository root with:
 
@@ -21,9 +30,12 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from scipy.linalg import hankel, subspace_angles, svd
 
-from prony import match_estimates, prony_method, wrap_to_nyquist
+from prony import (
+    match_estimates_wrapped_exponent,
+    prony_method,
+    wrap_to_nyquist,
+)
 
 from .config import (
     AMPLITUDES,
@@ -38,6 +50,7 @@ from .config import (
     clean_signal,
     sample_count,
 )
+from .noise_protocol import canonical_real_noise
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -47,15 +60,7 @@ DIAGNOSTIC_NAMES = (
     "damping_rmse",
     "frequency_rmse",
     "oracle_amplitude_error",
-    "subspace_angle_max_deg",
-    "subspace_angle_mean_deg",
 )
-
-
-def _build_hankel(y: np.ndarray, rho: int) -> np.ndarray:
-    """Construct the same Hankel matrix used by prony_method."""
-    m = int(rho) * MODEL_ORDER
-    return hankel(y[: m + 1], y[m : m + MODEL_ORDER + 1])
 
 
 def _oracle_amplitudes(
@@ -89,48 +94,20 @@ def _parameter_diagnostics(
 ) -> tuple[float, float]:
     """Return damping RMSE and wrapped frequency RMSE."""
     damping_error = np.real(lambda_hat) - np.real(EXPONENTS)
-    damping_rmse = float(
-        np.sqrt(np.mean(damping_error**2))
-    )
+    damping_rmse = float(np.sqrt(np.mean(damping_error**2)))
 
     f_hat = np.imag(lambda_hat) / (2.0 * np.pi)
     frequency_error = wrap_to_nyquist(f_hat - FREQUENCIES)
-    frequency_rmse = float(
-        np.sqrt(np.mean(frequency_error**2))
-    )
+    frequency_rmse = float(np.sqrt(np.mean(frequency_error**2)))
 
     return damping_rmse, frequency_rmse
 
 
-def _subspace_diagnostics(
-    y_clean: np.ndarray,
-    y_noisy: np.ndarray,
-    rho: int,
-) -> tuple[float, float]:
-    """Compare noisy and clean rank-n left singular subspaces.
-
-    Returns the largest and mean principal angles in degrees.
-    """
-    H_clean = _build_hankel(y_clean, rho)
-    H_noisy = _build_hankel(y_noisy, rho)
-
-    U_clean, _, _ = svd(H_clean, full_matrices=False)
-    U_noisy, _, _ = svd(H_noisy, full_matrices=False)
-
-    Uc = U_clean[:, :MODEL_ORDER]
-    Un = U_noisy[:, :MODEL_ORDER]
-
-    angles = np.rad2deg(subspace_angles(Uc, Un))
-
-    return float(np.max(angles)), float(np.mean(angles))
-
-
 def _one_trial(
-    y_clean: np.ndarray,
     y_noisy: np.ndarray,
     rho: int,
 ) -> np.ndarray:
-    """Compute the additional diagnostics for one paired fit."""
+    """Compute the retained diagnostics for one paired fit."""
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         a_hat, lambda_hat, _ = prony_method(
@@ -139,7 +116,7 @@ def _one_trial(
             n=MODEL_ORDER,
         )
 
-    _, lambda_hat, _ = match_estimates(
+    _, lambda_hat, _ = match_estimates_wrapped_exponent(
         AMPLITUDES,
         EXPONENTS,
         a_hat,
@@ -155,19 +132,11 @@ def _one_trial(
         / np.linalg.norm(AMPLITUDES)
     )
 
-    angle_max, angle_mean = _subspace_diagnostics(
-        y_clean=y_clean[:n_samples],
-        y_noisy=y_noisy,
-        rho=int(rho),
-    )
-
     values = np.array(
         [
             damping_rmse,
             frequency_rmse,
             oracle_amplitude_error,
-            angle_max,
-            angle_mean,
         ],
         dtype=float,
     )
@@ -181,7 +150,7 @@ def _one_trial(
 
 
 def run(n_trials: int = N_TRIALS) -> np.ndarray:
-    """Run the diagnostic study under the same paired-noise protocol."""
+    """Run the diagnostic study under the canonical paired-noise protocol."""
     if not 1 <= n_trials <= N_TRIALS:
         raise ValueError(
             f"n_trials must be between 1 and {N_TRIALS}, got {n_trials}."
@@ -208,8 +177,7 @@ def run(n_trials: int = N_TRIALS) -> np.ndarray:
         )
 
         for trial_idx, seed in enumerate(seeds):
-            rng = np.random.RandomState(int(seed))
-            noise_full = rng.standard_normal(MAX_SAMPLES)
+            noise_full = canonical_real_noise(int(seed), MAX_SAMPLES)
 
             for rho_idx, rho in enumerate(RHO_VALUES):
                 n_samples = sample_count(int(rho))
@@ -219,7 +187,6 @@ def run(n_trials: int = N_TRIALS) -> np.ndarray:
                 )
 
                 raw[noise_idx, rho_idx, trial_idx, :] = _one_trial(
-                    y_clean=y_clean_full,
                     y_noisy=y_noisy,
                     rho=int(rho),
                 )
