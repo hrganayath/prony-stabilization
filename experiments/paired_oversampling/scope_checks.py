@@ -5,9 +5,9 @@ They use purely imaginary exponents and therefore report wrapped frequency
 RMSE (cycles/sample), rather than the main paper's relative complex-exponent
 error. Amplitude error remains a relative l2 error.
 
-The paired protocol matches the main study: trial i uses RandomState(i), and
-all rho values use progressively longer prefixes of the same real Gaussian
-noise realization.
+The paired protocol matches the accepted-abstract main study: trial i uses
+default_rng(i), and all rho values use progressively longer prefixes of the
+same real Gaussian noise realization.
 
 Run a smoke test:
     python -m experiments.paired_oversampling.scope_checks --trials 3
