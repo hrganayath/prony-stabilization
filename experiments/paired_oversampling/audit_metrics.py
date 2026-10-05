@@ -1,6 +1,6 @@
 """Audit runner for wrapped exponent metrics and circular-noise replication.
 
-This module leaves the historical paired baseline in run.py unchanged.
+This module uses the accepted-abstract paired default_rng protocol.
 It reruns the same rho/sigma/trial grid and records parameter estimates
 plus both the historical and wrapped exponent metrics.
 
