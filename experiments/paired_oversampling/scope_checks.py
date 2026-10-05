@@ -33,7 +33,9 @@ from prony import (
 )
 
 
-from .noise_protocol import canonical_real_noise\n\nPROJECT_ROOT = Path(__file__).resolve().parents[2]
+from .noise_protocol import canonical_real_noise
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = PROJECT_ROOT / "results" / "paired_oversampling"
 
 RHO_VALUES = np.arange(1, 11, dtype=int)
