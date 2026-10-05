@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from scipy.linalg import hankel, subspace_angles, svdvals, svd
 
-from .config import (
+from .noise_protocol import canonical_real_noise\n\nfrom .config import (
     MAX_SAMPLES,
     MODEL_ORDER,
     N_TRIALS,
@@ -114,8 +114,7 @@ def run(n_trials: int = N_TRIALS) -> np.ndarray:
             flush=True,
         )
         for trial_idx, seed in enumerate(TRIAL_SEEDS[:n_trials]):
-            rng = np.random.RandomState(int(seed))
-            noise_full = rng.standard_normal(MAX_SAMPLES)
+            noise_full = canonical_real_noise(int(seed), MAX_SAMPLES)
 
             for rho_idx, rho in enumerate(RHO_VALUES):
                 n_samples = sample_count(int(rho))
