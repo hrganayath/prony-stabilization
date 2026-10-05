@@ -25,7 +25,7 @@ import pandas as pd
 
 from prony import match_estimates, prony_method, relative_exponent_error
 
-from .config import (
+from .noise_protocol import canonical_real_noise\n\nfrom .config import (
     AMPLITUDES,
     EXPONENTS,
     MAX_SAMPLES,
