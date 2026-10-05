@@ -1,7 +1,7 @@
 # Prony Stabilization
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](pyproject.toml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](pyproject.toml)
 
 A Python package implementing stabilized Prony's method for exponential
 analysis. This code accompanies the Master's thesis of **Hari Rajagopal**,
@@ -33,13 +33,16 @@ by constructing a Hankel matrix from the signal samples. In the presence of
 noise, this matrix becomes ill-conditioned, making parameter recovery
 numerically unstable.
 
-### Stabilization Technique 1 — Oversampling for Hankel Conditioning
+### Oversampling of the Hankel embedding
 
 When `oversampling_factor > 1`, the Hankel matrix is constructed with more
-rows than the minimum required (`ρ·n + 1` rows instead of `n + 1`). This
-overdetermination reduces the condition number and makes pole estimation via
-SVD-based ESPRIT more robust to noise. The trade-off is increased
-computational cost.
+rows than the minimum required (`ρ·n + 1` rows instead of `n + 1`).
+In the paired Monte Carlo study, moderate oversampling often improves pole
+recovery, but the benefit is noise- and signal-dependent and eventually
+deteriorates for the damped main model. The condition number of the full noisy
+Hankel matrix can decrease even when parameter errors increase, so conditioning
+is treated as a descriptive diagnostic rather than as a sufficient explanation
+of estimator performance.
 
 ### Stabilization Technique 2 — Column Scaling for Amplitude Recovery
 
@@ -60,7 +63,7 @@ subspaces and yields more stable pole estimates.
 
 ## Requirements
 
-Python ≥ 3.9. All dependencies are declared in [`pyproject.toml`](pyproject.toml).
+Python ≥ 3.10. All dependencies are declared in [`pyproject.toml`](pyproject.toml).
 
 ---
 
@@ -155,6 +158,14 @@ prony-stabilization/
 
 ---
 
+## Reproducing the CMMAI paired oversampling study
+
+The canonical conference-study workflow is documented in
+[`experiments/paired_oversampling/README.md`](experiments/paired_oversampling/README.md).
+It uses paired `default_rng(i)` noise prefixes, wrap-aware exponent metrics,
+real and circular-noise audits, fixed-dimensional spectral diagnostics, and
+separate `n=6` and `n=8` scope checks.
+
 ## Reproducing Thesis Experiments
 
 To reproduce all numerical experiments:
@@ -206,12 +217,18 @@ Refer to docstrings for detailed documentation.
 
 ## Results
 
-Key findings from the thesis:
+The thesis and the later paired CMMAI study show a more nuanced picture:
 
-- Oversampling improves Hankel conditioning
-- Fixed-window evaluation enables fair comparison across oversampling factors
-- SVD-based ESPRIT is robust for pole estimation under noise
-- Column scaling stabilizes amplitude recovery
+- moderate oversampling can substantially improve exponent recovery for the
+  tested damped signal
+- the preferred tested oversampling factor shifts downward as noise increases
+- amplitude recovery typically benefits over a narrower range than exponent
+  recovery
+- full noisy-Hankel conditioning can improve even after parameter recovery has
+  begun to deteriorate
+- fixed-window reconstruction diagnostics reveal a trade-off between fitting
+  noisy observations and recovering the underlying clean signal
+- column scaling is used in the Vandermonde least-squares amplitude stage
 
 Example outputs generated:
 
@@ -247,7 +264,7 @@ If you use this code in research:
 ```bibtex
 @mastersthesis{Rajagopal2026,
   author = {Hari Rajagopal},
-  title  = {Stabilization of Prony's Method for Exponential Analysis},
+  title  = {Enhancing the Stability of Prony's Method for Exponential Parameter Estimation via Oversampling and Robust Numerical Techniques},
   school = {University of Passau},
   year   = {2026}
 }
