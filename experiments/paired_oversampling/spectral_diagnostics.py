@@ -22,7 +22,9 @@ import numpy as np
 import pandas as pd
 from scipy.linalg import hankel, subspace_angles, svdvals, svd
 
-from .noise_protocol import canonical_real_noise\n\nfrom .config import (
+from .noise_protocol import canonical_real_noise
+
+from .config import (
     MAX_SAMPLES,
     MODEL_ORDER,
     N_TRIALS,
