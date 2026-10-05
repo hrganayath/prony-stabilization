@@ -37,7 +37,7 @@ from prony import (
     relative_exponent_error_wrapped,
 )
 
-from .config import (
+from .noise_protocol import canonical_circular_noise, canonical_real_noise\n\nfrom .config import (
     AMPLITUDES,
     EXPONENTS,
     MAX_SAMPLES,
@@ -65,16 +65,12 @@ METRIC_NAMES = (
 
 
 def _draw_noise(seed: int, noise_model: str) -> np.ndarray:
-    """Draw one length-MAX_SAMPLES standardized noise realization."""
-    rng = np.random.RandomState(int(seed))
-
+    """Draw one canonical length-MAX_SAMPLES standardized noise realization."""
     if noise_model == "real":
-        return rng.standard_normal(MAX_SAMPLES).astype(complex)
+        return canonical_real_noise(seed, MAX_SAMPLES).astype(complex)
 
     if noise_model == "circular":
-        xi = rng.standard_normal(MAX_SAMPLES)
-        eta = rng.standard_normal(MAX_SAMPLES)
-        return (xi + 1j * eta) / np.sqrt(2.0)
+        return canonical_circular_noise(seed, MAX_SAMPLES)
 
     raise ValueError(f"Unknown noise model: {noise_model}")
 
