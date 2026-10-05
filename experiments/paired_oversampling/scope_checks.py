@@ -33,7 +33,7 @@ from prony import (
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+from .noise_protocol import canonical_real_noise\n\nPROJECT_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = PROJECT_ROOT / "results" / "paired_oversampling"
 
 RHO_VALUES = np.arange(1, 11, dtype=int)
@@ -165,8 +165,7 @@ def run(n_trials: int = N_TRIALS) -> dict[int, np.ndarray]:
             )
 
             for trial_idx, seed in enumerate(TRIAL_SEEDS[:n_trials]):
-                rng = np.random.RandomState(int(seed))
-                noise_full = rng.standard_normal(model.max_samples)
+                noise_full = canonical_real_noise(int(seed), model.max_samples)
 
                 for rho_idx, rho in enumerate(RHO_VALUES):
                     n_samples = model.sample_count(int(rho))
