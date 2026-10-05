@@ -9,9 +9,9 @@ For a quick smoke test:
     python -m experiments.paired_oversampling.run --trials 3
 
 This runner is intentionally separate from experiments.run_experiments.
-Its purpose is to reproduce the paired oversampling design used for the
-paper study: within each trial the same noise realization is reused across
-all oversampling factors by taking longer prefixes.
+Its purpose is to reproduce the accepted-abstract paired oversampling design:
+trial i uses default_rng(i), and all oversampling factors reuse progressively
+longer prefixes of the same realization.
 """
 
 from __future__ import annotations
@@ -161,13 +161,12 @@ def run(n_trials: int = N_TRIALS) -> np.ndarray:
         )
 
         for trial_idx, seed in enumerate(seeds):
-            # Historical paired protocol:
-            # trial i uses RandomState(i). The same standard-normal
+            # Accepted-abstract paired protocol:
+            # trial i uses default_rng(i). The same standard-normal
             # realization is reused across rho via progressively longer
             # prefixes. Reusing the same seed at every sigma also keeps the
             # underlying standard-normal draw fixed across noise levels.
-            rng = np.random.RandomState(int(seed))
-            noise_full = rng.standard_normal(MAX_SAMPLES)
+            noise_full = canonical_real_noise(int(seed), MAX_SAMPLES)
 
             for rho_idx, rho in enumerate(RHO_VALUES):
                 n_samples = sample_count(int(rho))
