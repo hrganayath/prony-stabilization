@@ -37,7 +37,9 @@ from prony import (
     relative_exponent_error_wrapped,
 )
 
-from .noise_protocol import canonical_circular_noise, canonical_real_noise\n\nfrom .config import (
+from .noise_protocol import canonical_circular_noise, canonical_real_noise
+
+from .config import (
     AMPLITUDES,
     EXPONENTS,
     MAX_SAMPLES,
