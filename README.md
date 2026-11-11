@@ -1,100 +1,56 @@
-# Prony Stabilization
+# Prony Stabilization: numerical reproducibility repository
 
+[![Tests](https://github.com/hrganayath/prony-stabilization/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/hrganayath/prony-stabilization/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](pyproject.toml)
 
-A Python package implementing stabilized Prony's method for exponential
-analysis. This code accompanies the Master's thesis of **Hari Rajagopal**,
-University of Passau (2026).
+This repository contains the Python implementation, experiment runners, tests,
+and curated numerical outputs for the study **“Noise-Dependent Oversampling
+Trade-Offs in ESPRIT-Based Prony Recovery of Exponential Sums.”** The study
+examines how oversampling affects recovery in a four-term damped exponential
+model under controlled paired-noise Monte Carlo experiments.
 
----
+The repository is also the software companion to the author's work on
+numerical stabilization of Prony-type exponential parameter estimation.
 
-## Features
+## What is included
 
-- Prony's method with oversampling for noise robustness
-- SVD-based ESPRIT for pole estimation
-- Condition number analysis of Hankel matrices
-- Residual (data misfit) metrics
-- Sensitivity analysis tools
-- Monte Carlo experiment framework
-- Publication-ready plotting functions
+- `src/prony/`: the reusable Prony/ESPRIT implementation and supporting
+  utilities.
+- `experiments/paired_oversampling/`: canonical experiment, audit, diagnostic,
+  uncertainty, table, and figure-generation scripts.
+- `reproducibility/paired_oversampling/`: the curated numerical snapshot
+  (trial-level arrays, CSV summaries/tables, and PNG figures) used for review
+  and inspection without rerunning the Monte Carlo calculations.
+- `tests/`: automated tests for the package and research protocols.
+- `.github/workflows/`: continuous integration for the test suite.
 
----
-
-## Method Overview
-
-### The Core Problem
-
-Prony's method estimates parameters of a sum-of-exponentials signal:
-
-    y[k] = Σ_i a_i · exp(ω_i · k · dt)
-
-by constructing a Hankel matrix from the signal samples. In the presence of
-noise, this matrix becomes ill-conditioned, making parameter recovery
-numerically unstable.
-
-### Oversampling of the Hankel embedding
-
-When `oversampling_factor > 1`, the Hankel matrix is constructed with more
-rows than the minimum required (`ρ·n + 1` rows instead of `n + 1`).
-In the paired Monte Carlo study, moderate oversampling often improves pole
-recovery, but the benefit is noise- and signal-dependent and eventually
-deteriorates for the damped main model. The condition number of the full noisy
-Hankel matrix can decrease even when parameter errors increase, so conditioning
-is treated as a descriptive diagnostic rather than as a sufficient explanation
-of estimator performance.
-
-### Stabilization Technique 2 — Column Scaling for Amplitude Recovery
-
-After pole estimation, amplitudes are recovered by solving a Vandermonde
-least squares system. When poles have large dynamic range, the columns of
-this matrix vary wildly in magnitude, destabilizing the solve. Each column
-is normalized by its L2 norm before solving, then the scaling is reversed
-to recover the true amplitudes.
-
-### Pole Estimation — SVD-based ESPRIT
-
-Rather than solving the Prony polynomial directly (which is sensitive to
-noise), poles are estimated via the ESPRIT algorithm applied to the left
-singular vectors of the Hankel matrix. This separates signal and noise
-subspaces and yields more stable pole estimates.
-
----
-
-## Requirements
-
-Python ≥ 3.10. All dependencies are declared in [`pyproject.toml`](pyproject.toml).
-
----
+The manuscript and paper-preparation files are maintained separately and are
+not part of this public repository.
 
 ## Installation
 
-Clone the repository, create a virtual environment, and install in editable
-mode:
+Python 3.10 or newer is required. From a clone of this repository:
 
 ```bash
 git clone https://github.com/hrganayath/prony-stabilization.git
 cd prony-stabilization
 python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
 ```
 
-### Run Tests
+## Run the tests
 
 ```bash
 pytest -q
 ```
 
-To run with coverage report:
+The package uses a `src/` layout. Installing it in editable mode as above
+ensures `prony` is importable by the tests and experiment scripts.
 
-```bash
-pytest -q --cov=prony --cov-report=term-missing
-```
-
----
-
-## Quick Start
+## Quick start
 
 ```python
 import numpy as np
@@ -102,190 +58,67 @@ from prony.core import prony_method
 from prony.data import generate_clean_data
 from prony.utils import match_estimates
 
-# Create a synthetic signal with 2 exponentials
-dt = 1.0  # sampling interval (seconds); adjust as needed
-t = np.arange(30) * dt
+n = 2
+t = np.arange(30, dtype=float)
 a_true = np.array([1.0, 0.5])
-# omega_true: continuous-time complex exponents (sigma + j*omega)
-# signal model: y[k] = sum_i a_i * exp(omega_i * t[k])
-omega_true = np.array([-0.1+0.5j, -0.2-0.3j])
+omega_true = np.array([-0.1 + 0.5j, -0.2 - 0.3j])
 y = generate_clean_data(t, a_true, omega_true)
 
-# Apply Prony's method with oversampling factor 2
-a_est, omega_est, cond = prony_method(y, oversampling_factor=2, n=2)
-
-# Match estimates to true parameters
-a_est_m, omega_est_m, distances = match_estimates(a_true, omega_true, a_est, omega_est)
-
-print("True amplitudes:", a_true)
-print("Estimated amplitudes:", a_est_m)
-print("True exponents:", omega_true)
-print("Estimated exponents:", omega_est_m)
-print("Condition number of Hankel matrix:", cond)
-print("Pole matching distances:", distances)
-# Note: if dt != 1.0, physical exponents = omega_est_m / dt
-```
-
----
-
-## Project Structure
-
-```
-prony-stabilization/
-├── src/
-│   └── prony/
-│       ├── __init__.py
-│       ├── core.py
-│       ├── residual.py
-│       ├── utils.py
-│       └── data.py
-├── experiments/
-│   ├── run_experiments.py
-│   ├── plotting.py
-│   ├── comparison_tables.py
-│   └── sensitivity_analysis.py
-├── tests/
-│   ├── test_core.py
-│   ├── test_data.py
-│   ├── test_utils.py
-│   └── test_residual.py
-├── results/               # generated by run_experiments.py (git-ignored)
-├── README.md
-├── LICENSE
-├── pyproject.toml
-└── .gitignore
-```
-
----
-
-## Reproducing the CMMAI paired oversampling study
-
-The canonical conference-study workflow is documented in
-[`experiments/paired_oversampling/README.md`](experiments/paired_oversampling/README.md).
-It uses paired `default_rng(i)` noise prefixes, wrap-aware exponent metrics,
-real and circular-noise audits, fixed-dimensional spectral diagnostics, and
-separate `n=6` and `n=8` scope checks.
-
-## Reproducing Thesis Experiments
-
-To reproduce all numerical experiments:
-
-```bash
-python -m experiments.run_experiments
-```
-
-This will:
-
-- Run Monte Carlo simulations across noise levels and oversampling factors
-- Generate aggregated CSV result files
-- Create Excel comparison tables
-- Produce thesis figures (PNG)
-- Generate interactive Plotly visualizations
-
-Outputs are saved in the `results/` directory.
-
-To run a quick test with reduced parameters:
-
-```python
-from experiments.run_experiments import main, ExperimentConfig
-import numpy as np
-
-config = ExperimentConfig(
-    num_trials=10,
-    noise_levels=np.linspace(0.0, 0.5, num=3),
-    os_factors=[1, 2, 4],
+a_est, omega_est, hankel_condition = prony_method(
+    y, oversampling_factor=2, n=n
 )
-main(config)
+a_est, omega_est, distances = match_estimates(
+    a_true, omega_true, a_est, omega_est
+)
 ```
 
----
+## Reproducing the paired oversampling study
 
-## Documentation
+The complete design, noise protocol, metric definitions, runner sequence,
+interpretation limits, and output map are documented in
+[`experiments/paired_oversampling/README.md`](experiments/paired_oversampling/README.md).
 
-### Core Functions
+The curated results are available immediately under
+[`reproducibility/paired_oversampling/`](reproducibility/paired_oversampling/README.md).
+They include all 14 NPZ datasets, 50 CSV files, and 18 PNG figures present in
+the finalized local results snapshot. These are archived outputs, not files
+that are automatically regenerated during installation or test execution.
 
-- `prony_method(y, oversampling_factor, n)` — main algorithm
-- `compute_residual_error(...)` — residual / data misfit metrics
-- `match_estimates(...)` — optimal parameter matching via Hungarian algorithm
-- `relative_exponent_error(...)` — relative error between true and estimated exponents
-- `generate_clean_data(...)` — synthetic signal generation
-- `generate_noisy_data(...)` — noise injection
+To regenerate outputs, run the experiment commands documented in the paired
+study README. Generated working outputs are written under `results/`, which is
+intentionally ignored by Git so newly generated or intermediate files are not
+published accidentally. The curated snapshot under `reproducibility/` is
+version-controlled.
 
-Refer to docstrings for detailed documentation.
+## Interpretation and scope
 
----
+The design varies model order `n=4`, oversampling factor `rho=1,...,10`, and
+ten noise levels from 0 to 0.5, with 1000 paired Monte Carlo trials per
+configuration. Real Gaussian noise is the primary protocol; circular complex
+Gaussian noise is an audit. The sample count and observation horizon increase
+with `rho`, so the results characterize the complete oversampling design and
+do not isolate Hankel aspect ratio as a causal mechanism.
 
-## Results
+The final parameter summaries use wrap-aware exponent matching and the
+corresponding wrapped-match amplitude metric. A lower condition number of the
+full noisy Hankel matrix is not, by itself, evidence of improved ESPRIT
+parameter recovery. The observed favourable oversampling range depends on
+noise level, signal structure, and the quantity being estimated; exact grid
+minima should not be interpreted as a universal or uniquely optimal choice.
 
-The thesis and the later paired CMMAI study show a more nuanced picture:
+## Project layout
 
-- moderate oversampling can substantially improve exponent recovery for the
-  tested damped signal
-- the preferred tested oversampling factor shifts downward as noise increases
-- amplitude recovery typically benefits over a narrower range than exponent
-  recovery
-- full noisy-Hankel conditioning can improve even after parameter recovery has
-  begun to deteriorate
-- fixed-window reconstruction diagnostics reveal a trade-off between fitting
-  noisy observations and recovering the underlying clean signal
-- column scaling is used in the Vandermonde least-squares amplitude stage
-
-Example outputs generated:
-
-- RMSE heatmaps
-- Conditioning analysis plots
-- Sensitivity curves
-- Interactive error visualizations
-
----
-
-## Contributing
-
-Contributions are welcome.
-
-1. Fork the repository
-2. Create a branch (`git checkout -b feature/name`)
-3. Commit changes (`git commit -m "description"`)
-4. Push (`git push origin feature/name`)
-5. Open a Pull Request
-
----
+```text
+src/prony/                         reusable implementation
+experiments/paired_oversampling/  research runners and documentation
+reproducibility/paired_oversampling/
+  data/                            trial-level NPZ datasets
+  tables/summaries/                summary and diagnostic CSV files
+  tables/formatted/                formatted CSV tables
+  figures/                         PNG figures
+tests/                             automated tests
+```
 
 ## License
 
-Licensed under the MIT License. See [`LICENSE`](LICENSE).
-
----
-
-## Citation
-
-If you use this code in research:
-
-```bibtex
-@mastersthesis{Rajagopal2026,
-  author = {Hari Rajagopal},
-  title  = {Enhancing the Stability of Prony's Method for Exponential Parameter Estimation via Oversampling and Robust Numerical Techniques},
-  school = {University of Passau},
-  year   = {2026}
-}
-```
-
----
-
-## Contact
-
-**Hari Rajagopal**  
-Email: hrg.anayath@gmail.com  
-GitHub: https://github.com/hrganayath/prony-stabilization
-
----
-
-## Acknowledgments
-
-- University of Passau
-- Thesis advisor and committee
-- Scientific Python open-source ecosystem
-
----
-
-**Last updated:** February 2026
+This project is released under the MIT License. See [`LICENSE`](LICENSE).

@@ -1,7 +1,9 @@
 # Paired oversampling study
 
-This directory contains the reproducible CMMAI paired Monte Carlo study for
-the SVD-ESPRIT Prony pipeline.
+This directory contains the source code for the paired Monte Carlo study
+**“Noise-Dependent Oversampling Trade-Offs in ESPRIT-Based Prony Recovery of
+Exponential Sums.”** The curated output snapshot is published separately under
+[`reproducibility/paired_oversampling/`](../../reproducibility/paired_oversampling/README.md).
 
 ## Canonical main design
 
@@ -10,41 +12,33 @@ the SVD-ESPRIT Prony pipeline.
 - noise levels: 10 equally spaced values from 0 to 0.5
 - trials: 1000 per noise level
 - primary noise model: real Gaussian noise
+- audit noise model: circular complex Gaussian noise
 - canonical RNG: trial `i` uses `numpy.random.default_rng(i)`
 - pairing across `rho`: progressively longer prefixes of the same
   standardized noise realization are reused
-- the same standardized realization is also reused across noise levels and
-  scaled by the requested `sigma`
-- estimator: the existing `prony.prony_method`
+- the same standardized realization is reused across noise levels and scaled
+  by the requested `sigma`
+- estimator: `prony.prony_method`
 - common reconstruction scoring window: first `2n+1 = 9` samples
 
 For oversampling factor `rho`, the study uses a
 `(rho*n + 1) x (n + 1)` Hankel matrix and
-`N = n*(rho + 1) + 1` samples.
+`N = n*(rho + 1) + 1` samples. Thus sample count, observation horizon, and
+Hankel aspect ratio change together. Interpret the results as properties of
+this complete design, not as an isolated causal effect of matrix shape.
 
-The experiment deliberately couples sample count, observation horizon, and
-Hankel aspect ratio. Results should therefore be interpreted as properties of
-this complete oversampling design rather than as a universal statement about
-one isolated mechanism.
+## Installation and tests
 
-## Primary parameter metrics
+From the repository root, install the package and development dependencies:
 
-The final CMMAI analysis uses the audit runner for parameter-error reporting.
-
-The primary exponent metric is wrap-aware. Imaginary exponent differences are
-wrapped to `[-pi, pi)` before the relative complex-exponent error is formed.
-Component matching is also performed with the corresponding wrapped-exponent
-cost.
-
-The primary amplitude metric is the relative amplitude error after this
-wrapped-exponent matching.
-
-The historical direct exponent error is retained in the audit outputs only for
-provenance and reconciliation with the accepted abstract.
+```bash
+python -m pip install -e ".[dev]"
+pytest -q
+```
 
 ## Canonical experiment sequence
 
-From the repository root, run:
+Run from the repository root:
 
 ```bash
 python -m experiments.paired_oversampling.run
@@ -60,122 +54,101 @@ python -m experiments.paired_oversampling.make_tables
 python -m experiments.paired_oversampling.make_figures
 ```
 
-For smoke tests, the Monte Carlo runners accept `--trials 3`.
+The repository also contains supporting analyses for paired uncertainty,
+fixed-sample-count shape controls, and damping/frequency sensitivity. These
+are separate diagnostic analyses rather than steps needed to regenerate the
+primary canonical grid:
 
-Generated outputs live under:
+```bash
+python -m experiments.paired_oversampling.bootstrap_analysis
+python -m experiments.paired_oversampling.uncertainty_analysis
+python -m experiments.paired_oversampling.controls_uncertainty
+python -m experiments.paired_oversampling.fixed_n_shape_control
+python -m experiments.paired_oversampling.analyze_fixed_n_shape
+python -m experiments.paired_oversampling.damping_sweep
+python -m experiments.paired_oversampling.damping_sweep_closefreq
+python -m experiments.paired_oversampling.damping_sweep_closefreq_uncertainty
+```
+
+The Monte Carlo runners that expose `--trials` accept a reduced value for a
+smoke run. A smoke run is not a substitute for the canonical 1000-trial data.
+
+## Output locations and published snapshot
+
+Working outputs are generated under:
 
 ```text
 results/paired_oversampling/
 ```
 
-The `results/` directory is git-ignored. The version-controlled source code
-is sufficient to regenerate the numerical outputs.
+The `results/` directory is git-ignored to prevent accidental publication of
+intermediate or stale outputs. The reviewed snapshot is tracked separately at:
 
-## Role of each runner
+```text
+reproducibility/paired_oversampling/
+  data/                 NPZ trial-level arrays and metadata
+  tables/summaries/     summary, audit, diagnostic, and uncertainty CSVs
+  tables/formatted/     formatted CSV tables
+  figures/              PNG figures
+```
 
-### `run.py`
+The snapshot README describes each file family and the array metadata. To
+refresh the public snapshot after intentionally regenerating and reviewing
+outputs, copy only the final files into the corresponding `reproducibility/`
+subdirectories. Do not publish the entire `results/` working directory.
 
-Produces the paper-level reconstruction and full noisy-Hankel diagnostics:
+## Metric definitions and protocol
 
-- noisy-target RMSE on the common nine-sample window
-- clean-target RMSE on the common nine-sample window
-- condition number of the full noisy Hankel matrix
+The final parameter metric is wrap-aware: imaginary exponent differences are
+wrapped to `[-pi, pi)` before the relative complex-exponent error is formed.
+Component matching uses the corresponding wrapped-exponent cost. The primary
+amplitude metric is relative amplitude error after wrapped-exponent matching.
+Historical direct exponent and amplitude errors are retained in audit outputs
+for provenance and reconciliation, not as the final primary metrics.
 
-It also stores historical parameter errors for continuity, but the final paper
-uses the wrap-aware audit metrics for parameter-error claims.
+For circular complex Gaussian noise the convention is
+`eps = sigma/sqrt(2) * (xi + i*eta)`, so `E|eps|^2 = sigma^2`.
 
-### `audit_metrics.py`
+## Role of the main runners
 
-Runs the full paired grid under either real or circular complex Gaussian noise
-and stores:
+- `run.py`: common-window noisy-target and clean-target reconstruction RMSE,
+  plus full noisy-Hankel condition diagnostics.
+- `audit_metrics.py`: real/circular noise parameter audits, wrap-aware errors,
+  historical metrics, branch-jump counts, and matching disagreement.
+- `summarize_audit.py`: selected summaries and grid-minimum summaries from the
+  audit datasets.
+- `diagnostics.py`: damping RMSE, wrapped frequency RMSE, and oracle-pole
+  amplitude error. The oracle-pole calculation isolates the amplitude-fit
+  stage diagnostically; it does not establish a sole causal bottleneck.
+- `spectral_diagnostics.py` and `summarize_spectral.py`: comparable right
+  singular-subspace and singular-value/perturbation diagnostics. The right
+  subspace has fixed ambient dimension `n+1`; changing-dimension left-subspace
+  angles are not used for cross-`rho` comparisons.
+- `scope_checks.py`: separate `n=6` and `n=8` purely oscillatory scope checks.
+- `signal_decay.py`: deterministic signal and component-envelope decay over
+  the observation horizon.
+- `make_tables.py` and `make_figures.py`: paper-facing tables and figures from
+  the canonical outputs. They clear stale generated CSV/PNG outputs before
+  rebuilding them.
 
-- historical exponent error
-- wrap-aware exponent error
-- historical amplitude error
-- wrapped-match amplitude error
-- branch-jump count
-- historical/wrapped matching disagreement
-
-The circular-noise convention is
-
-`eps = sigma/sqrt(2) * (xi + i*eta)`,
-
-so `E|eps|^2 = sigma^2`.
-
-### `diagnostics.py`
-
-Stores three supporting diagnostics under the canonical real-noise protocol:
-
-- damping RMSE
-- wrapped frequency RMSE in cycles/sample
-- oracle-pole amplitude error
-
-The oracle-pole calculation fixes the true exponents and reruns only the
-column-scaled Vandermonde least-squares amplitude stage. It is therefore a
-diagnostic of how much ordinary amplitude deterioration is associated with
-pole-estimation error. It is not a claim that Vandermonde conditioning is the
-sole or dominant bottleneck.
-
-### `spectral_diagnostics.py`
-
-Uses cross-`rho` comparable spectral diagnostics:
-
-- maximum and mean right-singular-subspace principal angle
-- clean `sigma_n`
-- noisy `sigma_n/sigma_(n+1)` separation ratio
-- Hankel perturbation norm
-- perturbation norm divided by clean `sigma_n`
-
-The right singular subspace lives in the fixed ambient dimension `n+1`.
-Cross-`rho` left-subspace angles are intentionally excluded because their
-ambient dimension changes with `rho`.
-
-These quantities support interpretation only. They are not a causal proof and
-do not define an automatic rule for choosing `rho`.
-
-### `scope_checks.py`
-
-Runs separate `n=6` and `n=8` purely oscillatory scope checks. Because
-these models have purely imaginary exponents, the reported pole metric is
-wrapped frequency RMSE in cycles/sample rather than the main damped study's
-relative complex-exponent error.
-
-These are scope checks, not evidence for a universal model-order law.
-
-### `signal_decay.py`
-
-Provides a deterministic view of how the damped signal and individual
-component envelopes change as the observation horizon grows. This is useful
-for interpreting why later added samples may contain less signal information.
-
-### `make_tables.py` and `make_figures.py`
-
-These consume only the canonical outputs listed above. Before regeneration,
-they clear old paper-facing CSV or PNG files so stale outputs cannot remain
-mixed with current ones.
-
-Primary parameter plots/tables use the wrap-aware audit metrics. Reconstruction
-and condition-number outputs come from `run.py`. Spectral plots/tables come
-from `spectral_diagnostics.py`.
+The additional analysis runners listed above create bootstrap/uncertainty,
+fixed-`N`, and damping-sweep outputs. Consult their docstrings and source for
+the precise comparison definitions and design choices.
 
 ## Interpretation guardrails
 
-- `rho=1` is simply the smallest tested member of the same pipeline, not a
-  universal baseline method.
-- Exact integer grid minima are descriptive and should not be presented as
-  uniquely optimal values.
+- `rho=1` is the smallest tested member of the same pipeline, not a universal
+  baseline method.
+- Exact integer grid minima are descriptive; bootstrap comparisons show why
+  favourable ranges are more defensible than claiming a unique optimum.
 - A decreasing full noisy-Hankel condition number does not by itself imply
   better ESPRIT parameter recovery. ESPRIT does not directly invert the full
-  Hankel matrix, and noise can lift the smallest singular value.
+  Hankel matrix, and noise can lift its smallest singular value.
 - The small noisy-target RMSE at `rho=1` partly reflects that the common
   nine-sample scoring window is also the complete `rho=1` fitting window.
-- Right-subspace and spectral diagnostics are supporting evidence, not causal
-  proof.
+- Fixed-`N` controls are a separate diagnostic. Their design and metrics should
+  not be conflated with the primary common-nine-sample scoring protocol.
+- Spectral and oracle-pole diagnostics support interpretation; they are not
+  causal proofs or automatic rules for selecting `rho`.
 - The useful oversampling range depends on signal structure, noise level, and
-  the quantity being estimated.
-
-## Repository hygiene
-
-This study requires Python 3.10 or newer, consistent with the repository
-package metadata. Generated arrays, tables, and figures remain local under
-`results/` and are excluded from version control.
+  the target quantity (exponent, amplitude, or reconstruction).
