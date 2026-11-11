@@ -39,3 +39,6 @@ htmlcov/
 Thumbs.db
 .AppleDouble
 .LSOverride
+
+# Local paper preparation (never publish)
+/paper/
